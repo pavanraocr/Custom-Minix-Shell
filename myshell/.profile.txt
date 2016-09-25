@@ -1,0 +1,2 @@
+HOME=/home/pavan
+PATH=/usr:/usr/bin
