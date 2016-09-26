@@ -5,11 +5,15 @@
  *      Author: pavan
  */
 
+//custom header definition
+#include "../headers/customShell.h"
+
 #include<stdio.h>
 #include<regex.h>
+#include<string.h>
+#include<stdlib.h>
+#include<unistd.h>
 
-//custom header definition
-#include "customShell.h"
 
 regex_t regex;
 int compileStat;
@@ -20,19 +24,87 @@ char *errMsg;
  *
  * Returns statusType
  */
-statusType loadVariables(char *tokenVal){
-	compileStat = regexc(&regex, tokenVal, 0, NULL, 0);
-	if(!compileStat){
-		//This line contains the home variable definition
-
-		return COMPLETED;
+statusType loadVariables(char *key, char *val){
+	//if there is a key then there should exist a value
+	if(val == NULL){
+		return ERR;
 	}
-	else if(compileStat != REG_NOMATCH){
-		return EXIT;
+
+	char *tokenVal;
+	int i = 0;
+
+	if(strcmp(key, "HOME") == 0){
+		if(val[strlen(val)-1] == '\n'){
+			val[strlen(val)-1] = '\0';
+		}
+
+		//Setting the Home Variable
+		strcpy(SHELL_HOME,val);
+	}else if(strcmp(key, "PATH") == 0){
+		//setting the path variable
+		tokenVal = strtok(val,":");
+
+		//this is to check if the value contains only a single path
+		if(tokenVal == NULL && strlen(val) > 0){
+			PATH_VAR[i] = (char *)malloc(sizeof(char)*strlen(val));
+			strcpy(PATH_VAR[i++], val);
+			return EXIT;
+		}
+
+		//store all the : separated PATH env variables into an array
+		while(tokenVal != NULL){
+			if(PATH_VAR[i] == NULL)
+				PATH_VAR[i] = (char *)malloc(sizeof(char)*strlen(tokenVal));
+			else{
+				if(sizeof(PATH_VAR[i]) < sizeof(tokenVal)){
+					free(PATH_VAR[i]);
+					PATH_VAR[i] = (char *)malloc(sizeof(char)*strlen(tokenVal));
+				}
+			}
+
+			strcpy(PATH_VAR[i++], tokenVal);
+			tokenVal = strtok(NULL,":");
+
+			//Just to make sure the last charater in the string is a NULL character and not a new line character
+			if(PATH_VAR[i-1][strlen(PATH_VAR[i-1])-1] == '\n'){
+				PATH_VAR[i-1][strlen(PATH_VAR[i-1])-1] = '\0';
+			}
+		}
+
+		//This is to set the variable which tells the number of paths that exist in the PATH_DIR variable
+		NUM_OF_PATHS = i;
+	}else{
+		printf("The environment variable doesn't exist\n");
+		return ERR;
+	}
+
+	return EXIT;
+}
+
+/**
+ * Changes the directory to any given path as an input
+ *
+ * if input is NULL then value of SHELL_HOME is accessed
+ * returns statusType
+ */
+statusType changeDir(char *dir){
+	char *dirStr;
+	int retStatus;
+
+	//checks the case when the argument passed is NULL then value of SHELL_HOME is taken
+	if(dir == NULL){
+		dirStr = (char *)malloc(sizeof(char)*(strlen(SHELL_HOME)));
+		strcpy(dirStr, SHELL_HOME);
 	}
 	else{
-		regerror(compileStat, &regex, errMsg, sizeof(errMsg));
-		printf("Regex failed to match with error: %s\n", errMsg);
+		dirStr = (char *)malloc(sizeof(char) * (strlen(dir)));
+		strcpy(dirStr, dir);
+	}
+
+	retStatus = chdir(dirStr);
+
+	if(retStatus != 0){
+		printf("ERROR: Change directory operation failed\n");
 		return ERR;
 	}
 
@@ -47,35 +119,54 @@ statusType loadVariables(char *tokenVal){
  */
 statusType loadProfile(){
 	FILE *fp;
+	statusType retStat=EXIT;
 
 	//Opening the profile file
 	fp = fopen(".profile.txt","r");
 
-	compileStat = regcomp(&regex, "HOME*",0);
-
-	if(compileStat){
-		printf("There is some error in compiling the regularExpression");
+	if(fp == NULL){
+		printf("The file doesn't exist or not readable\n");
 		return ERR;
 	}
 
 	char *line = NULL;
 	size_t lineLength = 0;
-	char delim = " ";
-	char *tokenVal;
+	char delim = '=';
+	char *tokenVal = NULL;
+	char *key;
 
 	while(getline(&line, &lineLength, fp) != -1){
-		printf("Tokenizing the line %s", line);
-		tokenVal = strtok(line, delim);
+		printf("Tokenizing the line %s\n", line);
 
-		//logic to understand all the token
-		while(tokenVal != NULL){
-			loadVariables(tokenVal);
-			tokenVal = (NULL, delim);
+		//gets the env variable in the line
+		tokenVal = strtok(line, &delim);
+
+		//This is the line that doesn't contain any environment variable initialization
+		if(tokenVal == NULL){
+			continue;
 		}
+
+		key = (char *)malloc(sizeof(char)*strlen(tokenVal));
+		strcpy(key, tokenVal);
+
+		//gets the value of the env variable that was given as a key earlier
+		tokenVal = strtok(NULL, &delim);
+
+		//The value for a given key is missing
+		if(tokenVal == NULL){
+			free(key);
+			continue;
+		}
+
+		loadVariables(key, tokenVal);
+		free(key);
 	}
 
 	//closing the profile file
 	fclose(fp);
 
-	return EXIT;
+	//changes the current directory
+	retStat = changeDir(SHELL_HOME);
+
+	return retStat;
 }
