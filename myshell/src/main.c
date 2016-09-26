@@ -62,6 +62,7 @@ void invokeShell(){
 
 	statusType status;
 
+	//initializes all the environment variables to its default values
 	initEnvVars();
 
 	//Load VARs from the profile file
@@ -73,9 +74,18 @@ void invokeShell(){
 		return;
 	}
 
+	//initializes all the system available commands that are defined in the paths given in the PATH_VARS variable
+	initializeSysCommands();
+
 	//Continue to listen to the user
 	while(1){
 		printf("\n%s>", SHELL_HOME);
+
+		//TESTING THE ALIAS functionality to be removed later
+		mapNewAlias("listDirectory=ls");
+		mapNewAlias("changeDir=cd");
+		validateCommand("listDirectory");
+		validateCommand("which /etc/");
 
 		//TO-DO
 

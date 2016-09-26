@@ -11,6 +11,8 @@
 #include<stdio.h>
 #include<regex.h>
 #include<string.h>
+#include<stdlib.h>
+#include<unistd.h>
 
 
 regex_t regex;
@@ -24,7 +26,7 @@ char *errMsg;
  */
 statusType loadVariables(char *key, char *val){
 	//if there is a key then there should exist a value
-	if(strlen(val) == NULL){
+	if(val == NULL){
 		return ERR;
 	}
 
@@ -122,10 +124,15 @@ statusType loadProfile(){
 	//Opening the profile file
 	fp = fopen(".profile.txt","r");
 
+	if(fp == NULL){
+		printf("The file doesn't exist or not readable\n");
+		return ERR;
+	}
+
 	char *line = NULL;
 	size_t lineLength = 0;
 	char delim = '=';
-	char *tokenVal;
+	char *tokenVal = NULL;
 	char *key;
 
 	while(getline(&line, &lineLength, fp) != -1){
