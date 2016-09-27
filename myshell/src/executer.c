@@ -13,7 +13,7 @@ void tokenizeFirstLevel(char* retArrray[15], int * retCount, char * str);
 struct Command * parseCommand(char* cmd);
 void printList(struct Command * head);
 void executeInParallel(struct Command * head);
-void executeInSerial(struct Command * head);
+//void executeInSerial(struct Command * head);
 
 
 struct Command {
@@ -99,6 +99,7 @@ struct Command * parseCommand(char* cmd){
 	char* cmdArray[35];
 	int cmdCount;
 	tokenizeFirstLevel(cmdArray,&cmdCount,cmd);
+
 	for(i=0;i<cmdCount;i++){
 		char* currCmd = cmdArray[i];
 		struct Command * temp = malloc(sizeof(struct Command));
@@ -126,7 +127,6 @@ struct Command * parseCommand(char* cmd){
 			appendAtLast(nonParenthesizedHead,temp);
 			}
 		}
-		free(temp);
 	}
 
 	if(NULL == parenthesizedHead){
@@ -144,36 +144,6 @@ void printList(struct Command * head){
 		temp=temp->nextCommand;
 	}
 }
-
-
-
-int main(void){
-	char *str = "/bin/ls,(/bin/pwd,/usr/bin/arch)\0";
-	struct Command * head = parseCommand(str);
-	struct Command * temp = head;
-	while(temp!=NULL){
-		//printf("%s\n",temp->cmdStr);
-		pid_t pid = fork();
-		char * arguments[] = {temp->cmdStr,NULL};
-		if(pid<0){
-			perror("fork failed!!!!");
-			exit(-1);
-		}
-		else if(pid==0){
-			if(temp->siblingCommand!=NULL){
-				executeInParallel(temp->siblingCommand);
-			}
-			execvp(arguments[0],arguments);
-			exit(0);
-		}
-		else if(pid>0){
-			//wait for the current child to finish, hence ensuring serial execution
-			wait(NULL);
-			temp = temp->nextCommand;
-		}
-	}
-}
-
 
 void executeInParallel(struct Command * head){
 	struct Command * temp = head;
