@@ -126,6 +126,7 @@ struct Command * parseCommand(char* cmd){
 			appendAtLast(nonParenthesizedHead,temp);
 			}
 		}
+		free(temp);
 	}
 
 	if(NULL == parenthesizedHead){
@@ -147,13 +148,11 @@ void printList(struct Command * head){
 
 
 int main(void){
-	//char * str = "ls,(pwd,cmd3,(cmd4,cmd5)),cmd6\0";
-	char* str = "/bin/ls,(/bin/pwd,/bin/ls)\0";
+	char *str = "/bin/ls,(/bin/pwd,/usr/bin/arch)\0";
 	struct Command * head = parseCommand(str);
-
 	struct Command * temp = head;
-
 	while(temp!=NULL){
+		//printf("%s\n",temp->cmdStr);
 		pid_t pid = fork();
 		char * arguments[] = {temp->cmdStr,NULL};
 		if(pid<0){
@@ -161,17 +160,11 @@ int main(void){
 			exit(-1);
 		}
 		else if(pid==0){
+			if(temp->siblingCommand!=NULL){
+				executeInParallel(temp->siblingCommand);
+			}
 			execvp(arguments[0],arguments);
 			exit(0);
-
-			/*if(temp->siblingCommand==NULL){
-				execvp(arguments[0],arguments);
-				exit(0);
-			}else{
-				//printSibling(temp);
-				//executeInParallel(temp);
-				exit(0);
-			}*/
 		}
 		else if(pid>0){
 			//wait for the current child to finish, hence ensuring serial execution
@@ -179,72 +172,24 @@ int main(void){
 			temp = temp->nextCommand;
 		}
 	}
-
 }
 
-void executeInSerial(struct Command * head){
-	struct Command * temp = head;
-
-		while(temp!=NULL){
-			pid_t pid = fork();
-			char * arguments[] = {temp->cmdStr,NULL};
-			if(pid<0){
-				perror("fork failed!!!!");
-				exit(-1);
-			}
-			else if(pid==0){
-				if(temp->siblingCommand==NULL){
-					execvp(arguments[0],arguments);
-				}else{
-					executeInParallel(temp);
-				}
-			}
-			else if(pid>0){
-				//wait for the current child to finish, hence ensuring serial execution
-				wait(NULL);
-				temp = temp->nextCommand;
-			}
-		}
-
-}
 
 void executeInParallel(struct Command * head){
 	struct Command * temp = head;
-	int numOfChildren = 0;
-	while(temp!=NULL){
-		pid_t pid = fork();
-		numOfChildren++;
-		char * arguments[] = {temp->cmdStr,NULL};
-		if(pid==0){
-			printf("i am here with ");
-			exit(0);
-		}
-		else{
-			printf("I AM THERE");
-			temp=temp->siblingCommand;
-		}
-		/*if(pid<0){
-			perror("fork failed!!!!");
-			exit(-1);
-		}
-		else if(pid==0){
-			if(temp->nextCommand==NULL){
-				execvp(arguments[0],arguments);
-			}else{
-				//executeInSerial(temp);
-			}
-		}
-		else if(pid>0){
-			temp = temp->siblingCommand;
-		}*/
-
-
-
-	//wait for all the children running in parallel to finish
-	//for(;numOfChildren>0;numOfChildren--){
-		//wait(NULL);
+	char * arguments[] = {temp->cmdStr,NULL};
+	pid_t pid = fork();
+	if(pid ==0){
+		//printf("print from parallel - %s\n",arguments[0]);
+		execvp(arguments[0],arguments);
+		exit(0);
 	}
-
+	if(temp->nextCommand!=NULL){
+		executeInParallel(temp->nextCommand);
+	}
+	if(temp->siblingCommand!=NULL){
+		executeInParallel(temp->siblingCommand);
+	}
 }
 
 void tokenizeFirstLevel(char* retArray[35], int * retCount, char * str){
@@ -263,9 +208,8 @@ void tokenizeFirstLevel(char* retArray[35], int * retCount, char * str){
 			*(currToken+j) = '\0';
 			retArray[(*(retCount))++] = currToken;
 			j=0;
-
+			//free(currToken);
 			currToken = (char *) malloc(30);
-
 		}
 		else
 		{
