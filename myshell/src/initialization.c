@@ -136,7 +136,6 @@ statusType loadProfile(){
 	char *key;
 
 	while(getline(&line, &lineLength, fp) != -1){
-		printf("Tokenizing the line %s\n", line);
 
 		//gets the env variable in the line
 		tokenVal = strtok(line, &delim);

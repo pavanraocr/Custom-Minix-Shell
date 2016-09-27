@@ -99,6 +99,7 @@ struct Command * parseCommand(char* cmd){
 	char* cmdArray[35];
 	int cmdCount;
 	tokenizeFirstLevel(cmdArray,&cmdCount,cmd);
+
 	for(i=0;i<cmdCount;i++){
 		char* currCmd = cmdArray[i];
 		struct Command * temp = malloc(sizeof(struct Command));
@@ -126,7 +127,6 @@ struct Command * parseCommand(char* cmd){
 			appendAtLast(nonParenthesizedHead,temp);
 			}
 		}
-		free(temp);
 	}
 
 	if(NULL == parenthesizedHead){
@@ -144,8 +144,6 @@ void printList(struct Command * head){
 		temp=temp->nextCommand;
 	}
 }
-
-
 
 int main(void){
 	char *str = "/usr/bin/arch,(/bin/pwd,/bin/ls -ll)\0";
@@ -196,7 +194,6 @@ void executeInParallel(struct Command * head){
 	struct Command * temp = head;
 	char * arguments[15];
 	constructArguments(temp->cmdStr,arguments);//{temp->cmdStr,NULL};
-	printf("hell=%s\n",arguments[0]);
 	pid_t pid = fork();
 	if(pid ==0){
 		//printf("print from parallel - %s\n",arguments[0]);

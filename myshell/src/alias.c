@@ -215,14 +215,14 @@ statusType mapNewAlias(char *commandStr){
 
 	statusType retStatus;
 	bool isSysCommand;
-	char delim = '=';
+	char delim[2] = "=";
 	char *cmdStrCopy = (char *)malloc(sizeof(char)*strlen(commandStr));
 
 	strcpy(cmdStrCopy, commandStr);
 
 	char *tokenVal = NULL, *key;
 
-	tokenVal = strtok(cmdStrCopy, &delim);
+	tokenVal = strtok(cmdStrCopy, delim);
 
 	if(tokenVal == NULL){
 		printf("ERROR: The alias given was incorrect\n");
@@ -233,7 +233,7 @@ statusType mapNewAlias(char *commandStr){
 	key = (char *)malloc(sizeof(char)*strlen(tokenVal));
 	strcpy(key,tokenVal);
 
-	tokenVal = strtok(NULL, &delim);
+	tokenVal = strtok(NULL, delim);
 
 	if(tokenVal == NULL){
 		printf("ERROR: The alias given was incorrect\n");
@@ -289,6 +289,43 @@ bool findAliasValue(char *key){
 }
 
 /**
+ * Replaces the command with absolute path of the system Command
+ *
+ * return void
+ */
+void replaceWithCompletePath(char *key){
+	FILE *fp;
+	char *command;
+	char path[2048];
+
+	command = (char *)malloc(sizeof(char)*(strlen("/usr/bin/which ")+strlen(key)+1));
+
+	strcpy(command,"/usr/bin/which ");
+	strcat(command,key);
+
+	fp = popen(command, "r");
+	free(command);
+
+	if(fp == NULL){
+		printf("ERROR: Failed to execute a command\n");
+		exit(0);
+	}
+
+	/*Once the command is executed successfully the output is now read*/
+	if(fgets(path, sizeof(path)-1, fp) != NULL){
+
+		removeNewLineChar(path);
+
+		if(strlen(path) <= 0){
+			return;
+		}
+		strcpy(key, path);
+	}
+
+	pclose(fp);
+}
+
+/**
  * checks replace the command with the respective sys call or if there is no system call associated with it then prints the error
  *
  * return statusType
@@ -296,19 +333,20 @@ bool findAliasValue(char *key){
 statusType replaceCommand(char *key){
 	bool isSysCall, isAliasPresent;
 
-	isAliasPresent = findAliasValue(key);
-
-	if(isAliasPresent == FALSE){
-		printf("ERROR: Alias doesn't map to any system call\n");
-		return PRNTERR;
-	}
-
 	isSysCall = checkIfSysCommand(key);
 
 	if(isSysCall == TRUE){
+		replaceWithCompletePath(key);
 		return COMPLETED;
 	}
 	else{
+		isAliasPresent = findAliasValue(key);
+
+		if(isAliasPresent == FALSE){
+			printf("ERROR: The command is not recognized\n");
+			return PRNTERR;
+		}
+
 		return replaceCommand(key);
 	}
 }
@@ -324,7 +362,7 @@ char* validateCommand(char *commandStr){
 	char *key=NULL, *tokenVal=NULL, *finalCmd;
 	bool isCommanArgsPresent = TRUE;
 	int valueLen;
-	bool isSysCmd;
+	//bool isSysCmd;
 	statusType retStat;
 	char *cmdStrCopy = (char *)malloc(sizeof(char)*strlen(commandStr));
 	strcpy(cmdStrCopy, commandStr);
@@ -333,19 +371,13 @@ char* validateCommand(char *commandStr){
 
 	if(tokenVal == NULL){
 		printf("ERROR: Command string empty\n");
-		return NULL;
+		return "";
 	}
 
 	key = (char *)malloc(sizeof(char)*strlen(tokenVal));
 	strcpy(key,tokenVal);
 
-	isSysCmd = checkIfSysCommand(key);
-
-	//if the command is already a system command then no need replacement
-	if(isSysCmd == TRUE){
-		free(key);
-		return *commandStr;
-	}
+	//isSysCmd = checkIfSysCommand(key);
 
 	tokenVal = strtok(NULL, "\0");
 
@@ -361,10 +393,8 @@ char* validateCommand(char *commandStr){
 	retStat = replaceCommand(key);
 
 	if(retStat == PRNTERR){
-		//printf("ERROR: The alias %s is not registered to any command\n", key);
-
 		free(key);
-		return NULL;
+		return " ";
 	}
 
 	finalCmd = (char *)malloc(sizeof(char)*(strlen(key)+valueLen+1));
