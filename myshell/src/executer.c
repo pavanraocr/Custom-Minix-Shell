@@ -14,7 +14,7 @@ struct Command * parseCommand(char* cmd);
 void printList(struct Command * head);
 void executeInParallel(struct Command * head);
 void executeInSerial(struct Command * head);
-
+void constructArguments(char * cmd, char* arguments[]);
 
 struct Command {
    char *  cmdStr;
@@ -148,13 +148,15 @@ void printList(struct Command * head){
 
 
 int main(void){
-	char *str = "/bin/ls,(/bin/pwd,/usr/bin/arch)\0";
+	char *str = "/usr/bin/arch,(/bin/pwd,/bin/ls -ll)\0";
 	struct Command * head = parseCommand(str);
 	struct Command * temp = head;
 	while(temp!=NULL){
 		//printf("%s\n",temp->cmdStr);
+		char * arguments[15];
+		constructArguments(temp->cmdStr,arguments);//{temp->cmdStr,NULL};
+
 		pid_t pid = fork();
-		char * arguments[] = {temp->cmdStr,NULL};
 		if(pid<0){
 			perror("fork failed!!!!");
 			exit(-1);
@@ -174,10 +176,27 @@ int main(void){
 	}
 }
 
+void constructArguments(char * cmd, char* arguments[]){
+	char* tokenVal;
+	char* delim = " ";
+	tokenVal = strtok(cmd, delim);
+	int i=0;
+	arguments[i++] = tokenVal;
+	//logic to understand all the token
+	while(tokenVal != NULL){
+		tokenVal = strtok(NULL, delim);
+		if(tokenVal != NULL){
+			arguments[i++] = tokenVal;
+		}
+	}
+	arguments[i++] = NULL;
+}
 
 void executeInParallel(struct Command * head){
 	struct Command * temp = head;
-	char * arguments[] = {temp->cmdStr,NULL};
+	char * arguments[15];
+	constructArguments(temp->cmdStr,arguments);//{temp->cmdStr,NULL};
+	printf("hell=%s\n",arguments[0]);
 	pid_t pid = fork();
 	if(pid ==0){
 		//printf("print from parallel - %s\n",arguments[0]);
